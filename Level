@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
@@ -25,9 +25,6 @@ namespace RelicEscape
 
         // Track enemy room assignments
         private Dictionary<Enemy, int> enemyRooms = new Dictionary<Enemy, int>();
-
-        // **NEW: Animation timer for gate visual effects**
-        private float gateAnimationTimer = 0f;
 
         public Level3(GameLevelManager game, Player player, Random random) : base(game, player, random)
         {
@@ -58,9 +55,9 @@ namespace RelicEscape
             // Gates between rooms (initially closed) - using custom blocking tiles
             for (int y = 1; y < MapHeight - 1; y++)
             {
-                map[7, y] = TileType.Fence;   // Room 1 → 2 (using Fence as gate)
-                map[14, y] = TileType.Fence;  // Room 2 → 3
-                map[21, y] = TileType.Fence;  // Room 3 → 4
+                map[7, y] = TileType.Fence;   // Room 1 ? 2 (using Fence as gate)
+                map[14, y] = TileType.Fence;  // Room 2 ? 3
+                map[21, y] = TileType.Fence;  // Room 3 ? 4
             }
         }
 
@@ -147,8 +144,6 @@ namespace RelicEscape
 
             // Room 3 (columns 22-26) - Final boss (another tough Scorpion)
             var enemy10 = new Enemy(new Vector2(tileSize * 24, tileSize * 7), EnemyType.Scorpion);
-            enemy10.Health = 70;
-            enemy10.MaxHealth = 70;
             enemies.Add(enemy10);
             enemyRooms[enemy10] = 3;
 
@@ -164,9 +159,6 @@ namespace RelicEscape
 
         public override void Update(float deltaTime, KeyboardState keyState, KeyboardState prevKeyState)
         {
-            // **NEW: Update gate animation timer**
-            gateAnimationTimer += deltaTime;
-
             // Handle passcode input mode separately
             if (isEnteringPasscode)
             {
@@ -255,8 +247,8 @@ namespace RelicEscape
                 float distance = Vector2.Distance(player.Position, enemy.Position);
                 if (distance < player.AttackRange && player.IsAttacking)
                 {
-                    // Use fixed damage for Level 3
-                    int damage = 10;
+                    // **FIX 1: Use fixed damage instead of percentage-based**
+                    int damage = 10; // Fixed damage for Level 3
                     enemy.TakeDamage(damage);
                     player.HasDealtDamageThisAttack = true;
 
@@ -463,78 +455,10 @@ namespace RelicEscape
         {
             DrawMap(spriteBatch, textures);
             DrawHints(spriteBatch, textures);
-            DrawPasscodeGate(spriteBatch, textures); // **NEW: Draw the special gate with effects**
             DrawObjects(spriteBatch, textures);
             DrawItemDrops(spriteBatch, textures);
             DrawEnemies(spriteBatch, textures);
             DrawPlayer(spriteBatch, textures);
-        }
-
-        // **NEW: Draw the passcode gate with visual effects to make it highly visible**
-        private void DrawPasscodeGate(SpriteBatch spriteBatch, LevelTextures textures)
-        {
-            int relicCount = player.GetItemCount("Spiritvine Blade") +
-                           player.GetItemCount("Scroll of Antimatter") +
-                           player.GetItemCount("Fiery Blade");
-
-            // Only draw special effects if room 2 is cleared and player has relics
-            if (roomCleared[2] && relicCount >= 3 && !passcodeSolved)
-            {
-                // Draw the gate tiles (column 21, rows 7-8)
-                for (int y = 7; y <= 8; y++)
-                {
-                    Rectangle gateTileRect = new Rectangle(21 * tileSize, y * tileSize, tileSize, tileSize);
-                    
-                    // Pulsing glow effect
-                    float gatePulseValue = (float)Math.Sin(gateAnimationTimer * 3f) * 0.3f + 0.7f;
-                    Color glowColor = Color.Cyan * gatePulseValue;
-                    
-                    // Draw multiple layers for glow effect
-                    for (int i = 3; i > 0; i--)
-                    {
-                        Rectangle glowRect = new Rectangle(
-                            gateTileRect.X - i * 4,
-                            gateTileRect.Y - i * 4,
-                            gateTileRect.Width + i * 8,
-                            gateTileRect.Height + i * 8
-                        );
-                        spriteBatch.Draw(textures.Pixel, glowRect, glowColor * (0.2f / i));
-                    }
-                    
-                    // Draw the main gate with bright color
-                    spriteBatch.Draw(textures.Pixel, gateTileRect, Color.Cyan * 0.8f);
-                    
-                    // Draw border
-                    DrawRect(spriteBatch, gateTileRect, Color.Yellow, 3, textures.Pixel);
-                }
-
-                // Draw "ENTER CODE" text above the gate
-                Rectangle textBackgroundRect = new Rectangle(21 * tileSize - 20, 6 * tileSize, tileSize + 40, 30);
-                spriteBatch.Draw(textures.Pixel, textBackgroundRect, Color.Black * 0.8f);
-                DrawRect(spriteBatch, textBackgroundRect, Color.Yellow, 2, textures.Pixel);
-                
-                // Draw animated arrows pointing to the gate
-                float arrowBounce = (float)Math.Sin(gateAnimationTimer * 5f) * 5f;
-                float arrowPulseValue = (float)Math.Sin(gateAnimationTimer * 3f) * 0.3f + 0.7f;
-
-                // Left arrow
-                Rectangle leftArrow = new Rectangle(
-                    21 * tileSize - 30,
-                    (int)(7 * tileSize + tileSize / 2 - 10 + arrowBounce),
-                    20,
-                    20
-                );
-                spriteBatch.Draw(textures.Pixel, leftArrow, Color.Yellow * arrowPulseValue);
-
-                // Right arrow
-                Rectangle rightArrow = new Rectangle(
-                    21 * tileSize + tileSize + 10,
-                    (int)(7 * tileSize + tileSize / 2 - 10 + arrowBounce),
-                    20,
-                    20
-                );
-                spriteBatch.Draw(textures.Pixel, rightArrow, Color.Yellow * arrowPulseValue);
-            }
         }
 
         private void DrawHints(SpriteBatch spriteBatch, LevelTextures textures)
@@ -658,10 +582,11 @@ namespace RelicEscape
                 spriteBatch.DrawString(font, $"Weapon: {player.CurrentWeapon.Name}", new Vector2(20, yPos), Color.White, 0f, Vector2.Zero, 0.7f, SpriteEffects.None, 0f);
                 yPos += 25;
                 
+                // **FIX 2: Show fixed damage instead of percentage**
                 spriteBatch.DrawString(font, $"Damage: 10 (Fixed)", new Vector2(20, yPos), Color.Yellow, 0f, Vector2.Zero, 0.7f, SpriteEffects.None, 0f);
                 yPos += 35;
 
-                // **FIX 4: Show passcode input UI prominently**
+                // **FIX 3: Show passcode entry UI more prominently and in a separate panel**
                 if (isEnteringPasscode)
                 {
                     // Draw a centered overlay panel for passcode input
@@ -705,9 +630,9 @@ namespace RelicEscape
                 else if (roomCleared[2] && !passcodeSolved)
                 {
                     // Show hint when player needs to approach gate
-                    spriteBatch.DrawString(font, "Approach cyan gate", new Vector2(20, yPos), Color.Cyan, 0f, Vector2.Zero, 0.7f, SpriteEffects.None, 0f);
+                    spriteBatch.DrawString(font, "Approach final gate", new Vector2(20, yPos), Color.Orange, 0f, Vector2.Zero, 0.7f, SpriteEffects.None, 0f);
                     yPos += 20;
-                    spriteBatch.DrawString(font, "to enter passcode", new Vector2(20, yPos), Color.Cyan, 0f, Vector2.Zero, 0.7f, SpriteEffects.None, 0f);
+                    spriteBatch.DrawString(font, "to enter passcode", new Vector2(20, yPos), Color.Orange, 0f, Vector2.Zero, 0.7f, SpriteEffects.None, 0f);
                 }
             }
         }

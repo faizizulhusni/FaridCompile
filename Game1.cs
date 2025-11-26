@@ -331,8 +331,9 @@ namespace RelicEscape
                 transitionInProgress = false;
                 currentGameState = GameState.Level3;
                 currentLevel = level3;
-                player.Position = new Vector2(64 * 10, 64 * 2);
-                ShowMessage("BOSS FIGHT! Defeat the Infernal Guardian!");
+                // **FIX: Set player to spawn in the leftmost room (Room 1)**
+                player.Position = new Vector2(64 * 2, 64 * 7); // Column 2, Row 7 (leftmost room - Room 1)
+                ShowMessage("Final Level! Clear all rooms and solve the passcode puzzle!");
             }
         }
 
